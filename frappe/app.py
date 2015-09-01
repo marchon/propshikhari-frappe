@@ -28,6 +28,7 @@ import api_handler.api
 import api_handler.handler
 
 
+
 local_manager = LocalManager([frappe.local])
 
 _site = None
@@ -67,6 +68,7 @@ def application(request):
 			api_name = frappe.get_hooks("api_name", app_name="api_handler")[0]
 
 
+		
 		if frappe.local.conf.get('maintenance_mode'):
 			raise frappe.SessionStopped
 
