@@ -100,7 +100,7 @@ def execute_cmd(cmd, async=False):
 
 	# returns with a message
 	if ret:
-		frappe.response['message'] = ret
+		frappe.response["message"] = ret
 
 def get_attr(cmd):
 	"""get method object from cmd"""
