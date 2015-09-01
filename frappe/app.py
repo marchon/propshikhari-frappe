@@ -22,6 +22,10 @@ import frappe.website.render
 from frappe.utils import get_site_name, get_site_path
 from frappe.middlewares import StaticDataMiddleware
 
+import api_handler
+import api_handler.api
+import api_handler.handler
+
 
 local_manager = LocalManager([frappe.local])
 
@@ -56,6 +60,9 @@ def application(request):
 
 		init_site(request)
 
+		if "api_handler" in frappe.get_all_apps() and frappe.get_hooks("api_name", app_name="api_handler"):
+			api_name = frappe.get_hooks("api_name", app_name="api_handler")[0]	
+
 		if frappe.local.conf.get('maintenance_mode'):
 			raise frappe.SessionStopped
 
@@ -73,6 +80,9 @@ def application(request):
 
 		elif frappe.local.request.method in ('GET', 'HEAD'):
 			response = frappe.website.render.render(request.path)
+
+		elif api_name and frappe.request.path.startswith("/%s/"%api_name):
+			response = api_handler.api.handle()	
 
 		else:
 			raise NotFound
