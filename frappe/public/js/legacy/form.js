@@ -317,6 +317,8 @@ _f.Frm.prototype.refresh_header = function(is_a_different_doc) {
 		this.toolbar.refresh();
 	}
 
+	this.dashboard.reset();
+
 	this.clear_custom_buttons();
 
 	this.show_web_link();
@@ -400,6 +402,11 @@ _f.Frm.prototype.refresh = function(docname) {
 			})
 		} else {
 			this.render_form(is_a_different_doc);
+			if (this.doc.localname) {
+				// trigger form-rename and remove .localname
+				delete this.doc.localname;
+				$(document).trigger("form-rename", [this]);
+			}
 		}
 
 		// if print format is shown, refresh the format
