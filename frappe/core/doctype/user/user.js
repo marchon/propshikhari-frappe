@@ -91,6 +91,23 @@ cur_frm.cscript.validate = function(doc) {
 	}
 }
 
+cur_frm.fields_dict['city'].get_query = function(doc, cdt, cdn){
+	return {
+		filters: {
+			'state_name': doc.state
+		}
+	}
+}
+
+cur_frm.fields_dict['area'].get_query = function(doc, cdt, cdn){
+	return {
+		filters: {
+			'state_name': doc.state,
+			"city_name":doc.city
+		}
+	}
+}
+
 frappe.ModuleEditor = Class.extend({
 	init: function(frm, wrapper) {
 		this.wrapper = $('<div class="row module-block-list"></div>').appendTo(wrapper);
