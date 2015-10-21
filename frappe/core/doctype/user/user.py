@@ -12,6 +12,7 @@ import frappe.permissions
 import frappe.share
 import time
 import random
+from frappe.utils import get_gravatar, get_url
 
 
 
