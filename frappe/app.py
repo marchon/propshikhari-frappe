@@ -22,6 +22,11 @@ import frappe.utils.response
 import frappe.website.render
 from frappe.utils import get_site_name, get_site_path
 from frappe.middlewares import StaticDataMiddleware
+#write comment
+import api_handler
+import api_handler.api
+import api_handler.handler
+
 
 
 local_manager = LocalManager([frappe.local])
@@ -52,17 +57,25 @@ def application(request):
 	frappe.local.is_ajax = frappe.get_request_header("X-Requested-With")=="XMLHttpRequest"
 	response = None
 
+	
 	try:
 		rollback = True
 
 		init_site(request)
+		
+		#wirte comment
+		if "api_handler" in frappe.get_all_apps() and frappe.get_hooks("api_name", app_name="api_handler"):
+			api_name = frappe.get_hooks("api_name", app_name="api_handler")[0]
 
+
+		
 		if frappe.local.conf.get('maintenance_mode'):
 			raise frappe.SessionStopped
 
 		make_form_dict(request)
 		frappe.local.http_request = frappe.auth.HTTPRequest()
 
+		
 		if frappe.local.form_dict.cmd:
 			response = frappe.handler.handle()
 
@@ -74,6 +87,10 @@ def application(request):
 
 		elif frappe.local.request.method in ('GET', 'HEAD'):
 			response = frappe.website.render.render(request.path)
+
+		#write comment	
+		elif api_name and frappe.request.path.startswith("/%s/"%api_name):
+			response = api_handler.api.handle()
 
 		else:
 			raise NotFound

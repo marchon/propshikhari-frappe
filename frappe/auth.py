@@ -167,6 +167,7 @@ class LoginManager:
 
 		self.check_if_enabled(user)
 		self.user = self.check_password(user, pwd)
+		
 
 	def check_if_enabled(self, user):
 		"""raise exception if user not enabled"""

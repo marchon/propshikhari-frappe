@@ -3,13 +3,18 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cint, get_gravatar, format_datetime, now_datetime
+from frappe.utils import add_days, getdate, now, nowdate ,random_string ,add_months, getdate,cint,cstr
 from frappe import throw, msgprint, _
 from frappe.auth import _update_password
 from frappe.desk.notifications import clear_notifications
 from frappe.utils.user import get_system_managers
 import frappe.permissions
 import frappe.share
+import time
+import random
+from frappe.utils import get_gravatar, get_url
+
+
 
 STANDARD_USERS = ("Guest", "Administrator")
 
@@ -86,6 +91,8 @@ class User(Document):
 		clear_notifications(user=self.name)
 		frappe.clear_cache(user=self.name)
 		self.send_password_notifcation(self.__new_password)
+		if not self.user_id and self.user_type=="System User":
+			self.user_id = "USR-"  + cstr(int(time.time())) + '-' +  cstr(random.randint(1000,9999))
 
 	def share_with_self(self):
 		if self.user_type=="System User":

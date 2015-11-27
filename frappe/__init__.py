@@ -771,6 +771,7 @@ def call(fn, *args, **kwargs):
 		fnargs, varargs, varkw, defaults = inspect.getargspec(fn)
 
 	newargs = {}
+	
 	for a in kwargs:
 		if (a in fnargs) or varkw:
 			newargs[a] = kwargs.get(a)

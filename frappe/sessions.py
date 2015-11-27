@@ -217,7 +217,6 @@ class Session:
 	def resume(self):
 		"""non-login request: load a session"""
 		import frappe
-
 		data = self.get_session_record()
 
 		if data:
