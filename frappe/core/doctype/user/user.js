@@ -341,3 +341,8 @@ frappe.RoleEditor = Class.extend({
 		this.perm_dialog.$wrapper.find('.modal-dialog').css("width", "800px");
 	}
 });
+
+
+cur_frm.cscript.user_type = function(){
+	this.frm.toggle_reqd("access_type", this.frm.doc.user_type == "Website User");
+}
