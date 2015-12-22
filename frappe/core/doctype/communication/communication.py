@@ -109,7 +109,7 @@ class Communication(Document):
 			from frappe.tasks import sendmail
 			sendmail.delay(frappe.local.site, self.name,
 				print_html=print_html, print_format=print_format, attachments=attachments,
-				recipients=recipients, cc=cc, lang=frappe.local.lang)
+				recipients=recipients, cc=cc, lang=frappe.local.lang, session=frappe.local.session)
 
 	def _notify(self, print_html=None, print_format=None, attachments=None,
 		recipients=None, cc=None):
@@ -394,7 +394,3 @@ def make(doctype=None, name=None, content=None, subject=None, sent_or_received =
 		"name": comm.name,
 		"emails_not_sent_to": ", ".join(comm.emails_not_sent_to) if hasattr(comm, "emails_not_sent_to") else None
 	}
-
-@frappe.whitelist()
-def get_convert_to():
-	return frappe.get_hooks("communication_convert_to")

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
 from __future__ import unicode_literals
@@ -28,6 +29,7 @@ import api_handler.api
 import api_handler.handler
 
 
+from frappe.utils.error import make_error_snapshot
 
 local_manager = LocalManager([frappe.local])
 
@@ -85,6 +87,9 @@ def application(request):
 		elif frappe.request.path.startswith('/backups'):
 			response = frappe.utils.response.download_backup(request.path)
 
+		elif frappe.request.path.startswith('/private/files/'):
+			response = frappe.utils.response.download_private_file(request.path)
+
 		elif frappe.local.request.method in ('GET', 'HEAD'):
 			response = frappe.website.render.render(request.path)
 
@@ -103,7 +108,6 @@ def application(request):
 
 	except Exception, e:
 		http_status_code = getattr(e, "http_status_code", 500)
-		#print frappe.get_traceback()
 
 		if (http_status_code==500
 			and isinstance(e, MySQLdb.OperationalError)
@@ -132,8 +136,10 @@ def application(request):
 		if http_status_code==500:
 			logger.error('Request Error')
 
+		make_error_snapshot(e)
+
 	else:
-		if frappe.local.request.method in ("POST", "PUT") and frappe.db:
+		if (frappe.local.request.method in ("POST", "PUT") or frappe.local.flags.commit) and frappe.db:
 			if frappe.db.transaction_writes:
 				frappe.db.commit()
 				rollback = False

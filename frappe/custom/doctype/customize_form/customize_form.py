@@ -41,6 +41,7 @@ docfield_properties = {
 	'collapsible': 'Check',
 	'collapsible_depends_on': 'Data',
 	'print_hide': 'Check',
+	'print_hide_if_no_value': 'Check',
 	'report_hide': 'Check',
 	'allow_on_submit': 'Check',
 	'depends_on': 'Data',
@@ -52,7 +53,8 @@ docfield_properties = {
 }
 
 allowed_fieldtype_change = (('Currency', 'Float', 'Percent'), ('Small Text', 'Data'),
-	('Text', 'Text Editor', 'Code'), ('Data', 'Select'), ('Text', 'Small Text'))
+	('Text', 'Data'), ('Text', 'Text Editor', 'Code'), ('Data', 'Select'),
+	('Text', 'Small Text'))
 
 class CustomizeForm(Document):
 	def on_update(self):
