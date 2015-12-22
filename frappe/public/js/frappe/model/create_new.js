@@ -33,6 +33,11 @@ $.extend(frappe.model, {
 		}
 
 		frappe.model.add_to_locals(doc);
+
+		if (!parent_doc) {
+			doc.__run_link_triggers = 1;
+		}
+
 		return doc;
 	},
 
@@ -214,7 +219,6 @@ $.extend(frappe.model, {
 
 		} else if (!opts.source_name && opts.frm) {
 			opts.source_name = opts.frm.doc.name;
-
 		}
 
 		return frappe.call({
@@ -226,7 +230,10 @@ $.extend(frappe.model, {
 			freeze: true,
 			callback: function(r) {
 				if(!r.exc) {
-					var doc = frappe.model.sync(r.message);
+					frappe.model.sync(r.message);
+					if(opts.run_link_triggers) {
+						frappe.get_doc(r.message.doctype, r.message.name).__run_link_triggers = true;
+					}
 					frappe.set_route("Form", r.message.doctype, r.message.name);
 				}
 			}

@@ -47,8 +47,14 @@ frappe.ui.form.Control = Class.extend({
 	// as strings based on permissions
 	get_status: function(explain) {
 		if(!this.doctype && !this.docname) {
+			if (cint(this.df.hidden)) {
+				if(explain) console.log("By Hidden: None");
+				return "None";
+			}
+
 			return "Write";
 		}
+
 		var status = frappe.perm.get_field_display_status(this.df,
 			frappe.model.get_doc(this.doctype, this.docname), this.perm || (this.frm && this.frm.perm), explain);
 
@@ -870,15 +876,20 @@ frappe.ui.form.ControlAttachImage = frappe.ui.form.ControlAttach.extend({
 		this.img.on("click", function() { me.$input.click(); });
 
 		this.$wrapper.on("refresh", function() {
-			if(me.get_value()) {
-				$(me.input_area).find(".missing-image").toggle(false);
-				me.img.attr("src", me.dataurl ? me.dataurl : me.value).toggle(true);
-			} else {
-				$(me.input_area).find(".missing-image").toggle(true);
-				me.img.toggle(false);
-			}
+			me.set_image();
 		});
+		
+		this.set_image();
 	},
+	set_image: function() {
+		if(this.get_value()) {
+			$(this.input_area).find(".missing-image").toggle(false);
+			this.img.attr("src", this.dataurl ? this.dataurl : this.value).toggle(true);
+		} else {
+			$(this.input_area).find(".missing-image").toggle(true);
+			this.img.toggle(false);
+		}
+	}
 });
 
 

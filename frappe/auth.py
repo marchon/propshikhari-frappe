@@ -32,7 +32,7 @@ class HTTPRequest:
 			frappe.local.request_ip = '127.0.0.1'
 
 		# language
-		self.set_lang(frappe.request.accept_languages.values())
+		self.set_lang()
 
 		# load cookies
 		frappe.local.cookie_manager = CookieManager()
@@ -70,9 +70,9 @@ class HTTPRequest:
 				frappe.local.flags.disable_traceback = True
 				frappe.throw(_("Invalid Request"), frappe.CSRFTokenError)
 
-	def set_lang(self, lang_codes):
+	def set_lang(self):
 		from frappe.translate import guess_language
-		frappe.local.lang = guess_language(lang_codes)
+		frappe.local.lang = guess_language()
 
 	def get_db_name(self):
 		"""get database name from conf"""
@@ -121,7 +121,7 @@ class LoginManager:
 		frappe.local.cookie_manager.init_cookies()
 
 		self.info = frappe.db.get_value("User", self.user,
-			["user_type", "first_name", "last_name", "user_image"], as_dict=1)
+			["user_type", "first_name", "last_name", "user_image", "user_id"], as_dict=1)
 		self.full_name = " ".join(filter(None, [self.info.first_name,
 			self.info.last_name]))
 		self.user_type = self.info.user_type
@@ -140,6 +140,7 @@ class LoginManager:
 
 		frappe.local.cookie_manager.set_cookie("full_name", self.full_name)
 		frappe.local.cookie_manager.set_cookie("user_id", self.user)
+		frappe.local.cookie_manager.set_cookie("hc_user_id", self.info.user_id or "")
 		frappe.local.cookie_manager.set_cookie("user_image", self.info.user_image or "")
 
 	def make_session(self, resume=False):

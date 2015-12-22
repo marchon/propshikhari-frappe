@@ -201,6 +201,7 @@ function show_alert(txt, seconds) {
 		$(this).parent().remove();
 		return false;
 	});
+
 	div.delay(seconds ? seconds * 1000 : 3000).fadeOut(300);
 	return div;
 }

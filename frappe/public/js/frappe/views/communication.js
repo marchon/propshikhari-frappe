@@ -159,7 +159,7 @@ frappe.views.CommunicationComposer = Class.extend({
 	setup_subject_and_recipients: function() {
 		this.subject = this.subject || "";
 
-		if(this.last_email) {
+		if(!this.recipients && this.last_email) {
 			this.recipients = this.last_email.comment_by;
 		}
 
@@ -434,6 +434,8 @@ frappe.views.CommunicationComposer = Class.extend({
 			btn: btn,
 			callback: function(r) {
 				if(!r.exc) {
+					frappe.utils.play_sound("email");
+
 					if(form_values.send_email && r.message["emails_not_sent_to"]) {
 						msgprint( __("Email not sent to {0} (unsubscribed / disabled)",
 							[ frappe.utils.escape_html(r.message["emails_not_sent_to"]) ]) );

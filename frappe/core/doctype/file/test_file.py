@@ -15,6 +15,12 @@ class TestFile(unittest.TestCase):
 		self.delete_test_data()
 		self.upload_file()
 
+	def tearDown(self):
+		try:
+			frappe.get_doc("File", {"file_name": "file_copy.txt"}).delete()
+		except frappe.DoesNotExistError:
+			pass
+
 	def delete_test_data(self):
 		for f in frappe.db.sql('''select name, file_name from tabFile where
 			is_home_folder = 0 and is_attachments_folder = 0 order by rgt-lft asc'''):
@@ -50,7 +56,7 @@ class TestFile(unittest.TestCase):
 
 		self.assertEqual(_("Home/Test Folder 2"), file.folder)
 		self.assertEqual(frappe.db.get_value("File", _("Home/Test Folder 2"), "file_size"), file.file_size)
-		self.assertEqual(frappe.db.get_value("File", _("Home/Test Folder 1"), "file_size"), None)
+		self.assertEqual(frappe.db.get_value("File", _("Home/Test Folder 1"), "file_size"), 0)
 
 	def test_folder_copy(self):
 		folder = self.get_folder("Test Folder 2", "Home")
@@ -67,7 +73,7 @@ class TestFile(unittest.TestCase):
 
 		self.assertEqual(_("Home/Test Folder 1/Test Folder 3"), file.folder)
 		self.assertEqual(frappe.db.get_value("File", _("Home/Test Folder 1"), "file_size"), file.file_size)
-		self.assertEqual(frappe.db.get_value("File", _("Home/Test Folder 2"), "file_size"), None)
+		self.assertEqual(frappe.db.get_value("File", _("Home/Test Folder 2"), "file_size"), 0)
 
 	def test_non_parent_folder(self):
 		d = frappe.get_doc({
@@ -82,7 +88,7 @@ class TestFile(unittest.TestCase):
 		file = frappe.get_doc("File", {"file_name":"file_copy.txt"})
 		file.delete()
 
-		self.assertEqual(frappe.db.get_value("File", _("Home/Test Folder 1"), "file_size"), None)
+		self.assertEqual(frappe.db.get_value("File", _("Home/Test Folder 1"), "file_size"), 0)
 
 		folder = self.get_folder("Test Folder 3", "Home/Test Folder 1")
 		self.saved_file = save_file('folder_copy.txt', "Testing folder copy example.", "", "", folder.name)

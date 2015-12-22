@@ -6,7 +6,7 @@ import frappe
 import os, base64, re
 import hashlib
 import mimetypes
-from frappe.utils import get_site_path, get_hook_method, get_files_path, random_string, encode, cstr
+from frappe.utils import get_site_path, get_hook_method, get_files_path, random_string, encode, cstr, call_hook_method
 from frappe import _
 from frappe import conf
 from copy import copy
@@ -148,6 +148,8 @@ def save_file(fname, content, dt, dn, folder=None, decode=False):
 	fname = get_file_name(fname, content_hash[-6:])
 	file_data = get_file_data_from_hash(content_hash)
 	if not file_data:
+		call_hook_method("before_write_file", file_size=file_size)
+
 		method = get_hook_method('write_file', fallback=save_file_on_filesystem)
 		file_data = method(fname, content, content_type=content_type)
 		file_data = copy(file_data)
@@ -164,9 +166,10 @@ def save_file(fname, content, dt, dn, folder=None, decode=False):
 	f = frappe.get_doc(file_data)
 	f.flags.ignore_permissions = True
 	try:
-		f.insert();
+		f.insert()
 	except frappe.DuplicateEntryError:
 		return frappe.get_doc("File", f.duplicate_entry)
+
 	return f
 
 def get_file_data_from_hash(content_hash):
@@ -262,7 +265,7 @@ def delete_file(path):
 		parts = os.path.split(path)
 		path = frappe.utils.get_site_path("public", "files", parts[-1])
 
-		if "/../" in path:
+		if ".." in path.split("/"):
 			frappe.msgprint(_("It is risky to delete this file: {0}. Please contact your System Manager.").format(path))
 
 		path = encode(path)
@@ -270,23 +273,28 @@ def delete_file(path):
 			os.remove(path)
 
 def get_file(fname):
+	"""Returns [`file_name`, `content`] for given file name `fname`"""
+	file_path = get_file_path(fname)
+
+	# read the file
+	with open(encode(get_site_path("public", file_path)), 'r') as f:
+		content = f.read()
+
+	return [file_path.rsplit("/", 1)[-1], content]
+
+def get_file_path(file_name):
+	"""Returns file path from given file name"""
 	f = frappe.db.sql("""select file_name from `tabFile`
-		where name=%s or file_name=%s""", (fname, fname))
+		where name=%s or file_name=%s""", (file_name, file_name))
 	if f:
 		file_name = f[0][0]
-	else:
-		file_name = fname
 
 	file_path = file_name
 
 	if not "/" in file_path:
 		file_path = "files/" + file_path
 
-	# read the file
-	with open(get_site_path("public", file_path), 'r') as f:
-		content = f.read()
-
-	return [file_name, content]
+	return file_path
 
 def get_content_hash(content):
 	return hashlib.md5(content).hexdigest()

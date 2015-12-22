@@ -7,6 +7,7 @@ import json
 from email.utils import formataddr, parseaddr
 from frappe.utils import get_url, get_formatted_email, cint, validate_email_add, split_emails
 from frappe.utils.file_manager import get_file
+from frappe.email.bulk import check_bulk_limit
 import frappe.email.smtp
 from frappe import _
 
@@ -96,13 +97,15 @@ class Communication(Document):
 		recipients, cc = self.get_recipients_and_cc(recipients, cc,
 			fetched_from_email_account=fetched_from_email_account)
 
-		self.emails_not_sent_to = set(self.all_email_addresses) - set(recipients) - set(cc)
+		self.emails_not_sent_to = set(self.all_email_addresses) - set(self.sent_email_addresses)
 
 		if frappe.flags.in_test:
 			# for test cases, run synchronously
 			self._notify(print_html=print_html, print_format=print_format, attachments=attachments,
 				recipients=recipients, cc=cc)
 		else:
+			check_bulk_limit(list(set(self.sent_email_addresses)))
+
 			from frappe.tasks import sendmail
 			sendmail.delay(frappe.local.site, self.name,
 				print_html=print_html, print_format=print_format, attachments=attachments,
@@ -131,9 +134,11 @@ class Communication(Document):
 
 	def get_recipients_and_cc(self, recipients, cc, fetched_from_email_account=False):
 		self.all_email_addresses = []
+		self.sent_email_addresses = []
+		self.previous_email_sender = None
 
 		if not recipients:
-			recipients = self.get_recipients()
+			recipients = self.get_recipients(fetched_from_email_account=fetched_from_email_account)
 
 		if not cc:
 			cc = self.get_cc(recipients, fetched_from_email_account=fetched_from_email_account)
@@ -141,6 +146,10 @@ class Communication(Document):
 		if fetched_from_email_account:
 			# email was already sent to the original recipient by the sender's email service
 			original_recipients, recipients = recipients, []
+
+			# send email to the sender of the previous email in the thread which this email is a reply to
+			if self.previous_email_sender:
+				recipients.append(self.previous_email_sender)
 
 			# cc that was received in the email
 			original_cc = split_emails(self.cc)
@@ -205,15 +214,17 @@ class Communication(Document):
 				{"default_outgoing": 1, "enable_outgoing": 1},
 				["email_id", "always_use_account_email_id_as_sender"], as_dict=True) or frappe._dict()
 
-	def get_recipients(self):
+	def get_recipients(self, fetched_from_email_account=False):
 		"""Build a list of email addresses for To"""
 		# [EDGE CASE] self.recipients can be None when an email is sent as BCC
 		recipients = split_emails(self.recipients)
 
-		if recipients:
-			# this will be used to eventually find email addresses that aren't sent to
-			self.all_email_addresses.extend(recipients)
+		if fetched_from_email_account and self.in_reply_to:
+			# add sender of previous reply
+			self.previous_email_sender = frappe.db.get_value("Communication", self.in_reply_to, "sender")
+			recipients.append(self.previous_email_sender)
 
+		if recipients:
 			# exclude email accounts
 			exclude = [d[0] for d in
 				frappe.db.get_all("Email Account", ["email_id"], {"enable_incoming": 1}, as_list=True)]
@@ -237,14 +248,7 @@ class Communication(Document):
 				cc += self.get_assignees()
 				cc += self.get_starrers()
 
-		if fetched_from_email_account and self.in_reply_to:
-			# add sender of previous reply
-			cc.append(frappe.db.get_value("Communication", self.in_reply_to, "sender"))
-
 		if cc:
-			# this will be used to eventually find email addresses that aren't sent to
-			self.all_email_addresses.extend(cc)
-
 			# exclude email accounts, unfollows, recipients and unsubscribes
 			exclude = [d[0] for d in
 				frappe.db.get_all("Email Account", ["email_id"], {"enable_incoming": 1}, as_list=True)]
@@ -252,7 +256,7 @@ class Communication(Document):
 				frappe.db.get_all("Email Account", ["login_id"], {"enable_incoming": 1}, as_list=True)
 				if d[0]]
 			exclude += [d[0] for d in frappe.db.get_all("User", ["name"], {"thread_notify": 0}, as_list=True)]
-			exclude += [parseaddr(email)[1] for email in recipients]
+			exclude += [(parseaddr(email)[1] or "").lower() for email in recipients]
 
 			if fetched_from_email_account:
 				# exclude sender when pulling email
@@ -265,7 +269,7 @@ class Communication(Document):
 			cc = self.filter_email_list(cc, exclude, is_cc=True)
 
 		if getattr(self, "send_me_a_copy", False) and self.sender not in cc:
-			self.all_email_addresses.append(self.sender)
+			self.all_email_addresses.append((parseaddr(self.sender)[1] or "").lower())
 			cc.append(self.sender)
 
 		return cc
@@ -276,14 +280,14 @@ class Communication(Document):
 		email_address_list = []
 
 		for email in list(set(email_list)):
-			if email in exclude:
-				continue
-
 			email_address = (parseaddr(email)[1] or "").lower()
 			if not email_address:
 				continue
 
-			if email_address in exclude:
+			# this will be used to eventually find email addresses that aren't sent to
+			self.all_email_addresses.append(email_address)
+
+			if (email in exclude) or (email_address in exclude):
 				continue
 
 			if is_cc:
@@ -297,6 +301,8 @@ class Communication(Document):
 				# append the full email i.e. "Human <human@example.com>"
 				filtered.append(email)
 				email_address_list.append(email_address)
+
+		self.sent_email_addresses.extend(email_address_list)
 
 		return filtered
 
@@ -359,7 +365,7 @@ def make(doctype=None, name=None, content=None, subject=None, sent_or_received =
 		raise frappe.PermissionError("You are not allowed to send emails related to: {doctype} {name}".format(
 			doctype=doctype, name=name))
 
-	if not sender and frappe.session.user != "Administrator":
+	if not sender:
 		sender = get_formatted_email(frappe.session.user)
 
 	comm = frappe.get_doc({
@@ -369,7 +375,7 @@ def make(doctype=None, name=None, content=None, subject=None, sent_or_received =
 		"sender": sender,
 		"recipients": recipients,
 		"cc": cc or None,
-		"communication_medium": "Email",
+		"communication_medium": communication_medium,
 		"sent_or_received": sent_or_received,
 		"reference_doctype": doctype,
 		"reference_name": name

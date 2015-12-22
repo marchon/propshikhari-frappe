@@ -459,7 +459,7 @@ def has_website_permission(doctype, ptype="read", doc=None, user=None, verbose=F
 def is_table(doctype):
 	"""Returns True if `istable` property (indicating child Table) is set for given DocType."""
 	def get_tables():
-		return db.sql_list("select name from tabDocType where ifnull(istable,0)=1")
+		return db.sql_list("select name from tabDocType where istable=1")
 
 	tables = cache().get_value("is_table", get_tables)
 	return doctype in tables
@@ -616,7 +616,8 @@ def get_pymodule_path(modulename, *joins):
 
 	:param modulename: Python module name.
 	:param *joins: Join additional path elements using `os.path.join`."""
-	joins = [scrub(part) for part in joins]
+	if not "public" in joins:
+		joins = [scrub(part) for part in joins]
 	return os.path.join(os.path.dirname(get_module(scrub(modulename)).__file__), *joins)
 
 def get_module_list(app_name):
@@ -641,6 +642,9 @@ def get_installed_apps(sort=False):
 	"""Get list of installed apps in current site."""
 	if getattr(flags, "in_install_db", True):
 		return []
+
+	if not db:
+		connect()
 
 	installed = json.loads(db.get_global("installed_apps") or "[]")
 
@@ -751,6 +755,10 @@ def read_file(path, raise_not_found=False):
 
 def get_attr(method_string):
 	"""Get python method object from its name."""
+	app_name = method_string.split(".")[0]
+	if not local.flags.in_install and app_name not in get_installed_apps():
+		throw(_("App {0} is not installed").format(app_name), AppNotInstalledError)
+
 	modulename = '.'.join(method_string.split('.')[:-1])
 	methodname = method_string.split('.')[-1]
 	return getattr(get_module(modulename), methodname)
@@ -1043,7 +1051,7 @@ def publish_realtime(*args, **kwargs):
 
 	return frappe.async.publish_realtime(*args, **kwargs)
 
-def local_cache(namespace, key, generator):
+def local_cache(namespace, key, generator, regenerate_if_none=False):
 	"""A key value store for caching within a request
 
 	:param namespace: frappe.local.cache[namespace]
@@ -1057,4 +1065,15 @@ def local_cache(namespace, key, generator):
 	if key not in local.cache[namespace]:
 		local.cache[namespace][key] = generator()
 
+	elif local.cache[namespace][key]==None and regenerate_if_none:
+		# if key exists but the previous result was None
+		local.cache[namespace][key] = generator()
+
 	return local.cache[namespace][key]
+
+def get_doctype_app(doctype):
+	def _get_doctype_app():
+		doctype_module = local.db.get_value("DocType", doctype, "module")
+		return local.module_app[scrub(doctype_module)]
+
+	return local_cache("doctype_app", doctype, generator=_get_doctype_app)

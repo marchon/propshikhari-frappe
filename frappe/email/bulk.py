@@ -48,7 +48,7 @@ def send(recipients=None, sender=None, subject=None, message=None, reference_doc
 
 	if not sender or sender == "Administrator":
 		email_account = get_outgoing_email_account()
-		sender = email_account.get("sender") or email_account.email_id
+		sender = email_account.default_sender
 
 	check_bulk_limit(recipients)
 
@@ -83,7 +83,8 @@ def send(recipients=None, sender=None, subject=None, message=None, reference_doc
 				expose_recipients=expose_recipients,
 				unsubscribe_method=unsubscribe_method,
 				unsubscribe_params=unsubscribe_params,
-				unsubscribe_message=unsubscribe_message
+				unsubscribe_message=unsubscribe_message,
+				show_as_cc=show_as_cc
 			)
 
 			email_content = email_content.replace("<!--unsubscribe link here-->", unsubscribe_link.html)
@@ -144,14 +145,21 @@ def check_bulk_limit(recipients):
 		monthly_bulk_mail_limit = frappe.conf.get('monthly_bulk_mail_limit') or 500
 
 		if (this_month + len(recipients)) > monthly_bulk_mail_limit:
-			throw(_("Email limit {0} crossed").format(monthly_bulk_mail_limit),
+			throw(_("Cannot send this email. You have crossed the sending limit of {0} emails for this month.").format(monthly_bulk_mail_limit),
 				BulkLimitCrossedError)
 
 def get_unsubscribe_link(reference_doctype, reference_name,
-	email, recipients, expose_recipients, unsubscribe_method, unsubscribe_params, unsubscribe_message):
+	email, recipients, expose_recipients, show_as_cc,
+	unsubscribe_method, unsubscribe_params, unsubscribe_message):
 
-	unsubscribe_email = recipients if expose_recipients else [email]
-	unsubscribe_email = _("This email was sent to {0}").format(", ".join(unsubscribe_email))
+	email_sent_to = recipients if expose_recipients else [email]
+	email_sent_cc = ", ".join([e for e in email_sent_to if e in show_as_cc])
+	email_sent_to = ", ".join([e for e in email_sent_to if e not in show_as_cc])
+
+	if email_sent_cc:
+		email_sent_message = _("This email was sent to {0} and copied to {1}").format(email_sent_to, email_sent_cc)
+	else:
+		email_sent_message = _("This email was sent to {0}").format(email_sent_to)
 
 	if not unsubscribe_message:
 		unsubscribe_message = _("Unsubscribe from this list")
@@ -168,12 +176,12 @@ def get_unsubscribe_link(reference_doctype, reference_name,
 			</p>
 		</div>""".format(
 			unsubscribe_url = unsubscribe_url,
-			email=unsubscribe_email,
+			email=email_sent_message,
 			unsubscribe_message=unsubscribe_message
 		)
 
 	text = "\n{email}\n\n{unsubscribe_message}: {unsubscribe_url}".format(
-		email=unsubscribe_email,
+		email=email_sent_message,
 		unsubscribe_message=unsubscribe_message,
 		unsubscribe_url=unsubscribe_url
 	)

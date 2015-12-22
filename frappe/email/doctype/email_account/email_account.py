@@ -11,7 +11,7 @@ from frappe.utils.jinja import render_template
 from frappe.email.smtp import SMTPServer
 from frappe.email.receive import POP3Server, Email
 from poplib import error_proto
-import markdown2, re
+import re
 from dateutil.relativedelta import relativedelta
 from datetime import datetime, timedelta
 
@@ -139,7 +139,8 @@ class EmailAccount(Document):
 
 				else:
 					frappe.db.commit()
-					communication.notify(attachments=communication._attachments, fetched_from_email_account=True)
+					attachments = [d.file_name for d in communication._attachments]
+					communication.notify(attachments=attachments, fetched_from_email_account=True)
 
 			if exceptions:
 				raise Exception, frappe.as_json(exceptions)
@@ -172,12 +173,21 @@ class EmailAccount(Document):
 		# save attachments
 		communication._attachments = email.save_attachments_in_doc(communication)
 
-		if self.enable_auto_reply and getattr(communication, "is_first", False):
-			self.send_auto_reply(communication, email)
+		# replace inline images
+		dirty = False
+		for file in communication._attachments:
+			if file.name in email.cid_map and email.cid_map[file.name]:
+				dirty = True
+				communication.content = communication.content.replace("cid:{0}".format(email.cid_map[file.name]),
+					file.file_url)
+
+		if dirty:
+			# not sure if using save() will trigger anything
+			communication.db_set("content", communication.content)
 
 		# notify all participants of this thread
-		# convert content to HTML - by default text parts of replies are used.
-		communication.content = markdown2.markdown(communication.content)
+		if self.enable_auto_reply and getattr(communication, "is_first", False):
+			self.send_auto_reply(communication, email)
 
 		return communication
 

@@ -123,6 +123,10 @@ $.extend(frappe, {
 		if(opts.msg && data.message) {
 			$(opts.msg).html(data.message).toggle(true);
 		}
+
+		if(opts.always) {
+			opts.always(data);
+		}
 	},
 	show_message: function(text, icon) {
 		if(!icon) icon="icon-refresh icon-spin";
@@ -356,6 +360,7 @@ $.extend(frappe, {
 	},
 	page_ready_events: {},
 	ready: function(fn) {
+		// console.log("frappe.ready", frappe.get_pathname());
 		if (!frappe.page_ready_events[frappe.get_pathname()]) {
 			frappe.page_ready_events[frappe.get_pathname()] = []
 		}
@@ -403,6 +408,9 @@ $.extend(frappe, {
 				ready && ready();
 			}
 		}
+
+		// remove them so that they aren't fired again and again!
+		delete frappe.page_ready_events[frappe.get_pathname()];
 	},
 	highlight_code_blocks: function() {
 		if(hljs) {

@@ -20,7 +20,8 @@ frappe.ui.form.Comments = Class.extend({
 					new frappe.views.CommunicationComposer({
 						doc: me.frm.doc,
 						txt: frappe.markdown(me.input.val()),
-						frm: me.frm
+						frm: me.frm,
+						recipients: me.get_recipient()
 					})
 				} else {
 					me.add_comment(this);
@@ -229,6 +230,8 @@ frappe.ui.form.Comments = Class.extend({
 				if(!r.exc) {
 					me.input.val("");
 
+					frappe.utils.play_sound("click");
+
 					var comment = r.message;
 					var comments = me.get_comments();
 					var comment_exists = false;
@@ -260,6 +263,8 @@ frappe.ui.form.Comments = Class.extend({
 			},
 			callback: function(r) {
 				if(!r.exc) {
+					frappe.utils.play_sound("delete");
+
 					me.frm.get_docinfo().comments =
 						$.map(me.frm.get_docinfo().comments,
 							function(v) {

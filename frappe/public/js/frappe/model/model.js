@@ -42,7 +42,7 @@ $.extend(frappe.model, {
 			var doc = locals[data.doctype] && locals[data.doctype][data.name];
 			if(doc) {
 				// current document is dirty, show message if its not me
-				if(cur_frm.doc.doctype===doc.doctype && cur_frm.doc.name===doc.name) {
+				if(frappe.get_route()[0]==="Form" && cur_frm.doc.doctype===doc.doctype && cur_frm.doc.name===doc.name) {
 					if(!frappe.ui.form.is_saving && data.modified!=cur_frm.doc.modified) {
 						doc.__needs_refresh = true;
 						cur_frm.show_if_needs_refresh();
@@ -153,6 +153,12 @@ $.extend(frappe.model, {
 		return frappe.model.docinfo[doctype] && frappe.model.docinfo[doctype][name] || null;
 	},
 
+	set_docinfo: function(doctype, name, key, value) {
+		if (frappe.model.docinfo[doctype] && frappe.model.docinfo[doctype][name]) {
+			frappe.model.docinfo[doctype][name][key] = value;
+		}
+	},
+
 	new_comment: function(comment) {
 		var reference_doctype = comment.comment_doctype || comment.reference_doctype;
 		var reference_name = comment.comment_docname || comment.reference_name;
@@ -172,7 +178,7 @@ $.extend(frappe.model, {
 			}
 		}
 		if (cur_frm.doctype === reference_doctype && cur_frm.docname === reference_name) {
-			cur_frm.comments.refresh();
+			cur_frm.comments && cur_frm.comments.refresh();
 		}
 	},
 
@@ -466,6 +472,7 @@ $.extend(frappe.model, {
 				},
 				callback: function(r, rt) {
 					if(!r.exc) {
+						frappe.utils.play_sound("delete");
 						frappe.model.clear_doc(doctype, docname);
 						if(callback) callback(r,rt);
 					}

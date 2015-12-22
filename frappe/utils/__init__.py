@@ -317,6 +317,9 @@ def get_site_path(*path):
 def get_files_path(*path):
 	return get_site_path("public", "files", *path)
 
+def get_bench_path():
+	return os.path.realpath(os.path.join(os.path.dirname(frappe.__file__), '..', '..', '..'))
+
 def get_backups_path():
 	return get_site_path("private", "backups")
 
@@ -364,6 +367,10 @@ def get_hook_method(hook_name, fallback=None):
 		return method
 	if fallback:
 		return fallback
+
+def call_hook_method(hook, *args, **kwargs):
+	for method_name in frappe.get_hooks(hook):
+		frappe.get_attr(method_name)(*args, **kwargs)
 
 def update_progress_bar(txt, i, l):
 	lt = len(txt)
